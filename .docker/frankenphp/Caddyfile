@@ -1,0 +1,13 @@
+{
+    auto_https off
+	frankenphp
+	order php_server before file_server
+	log {
+        level DEBUG
+    }
+}
+
+:80, :443 {
+	root * {$PUBLIC_DIR:/app/public}
+	php_server
+}

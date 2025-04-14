@@ -1,47 +1,41 @@
-.PHONY: run
+setup:
+	@echo "Setting up project..."
+	@make docker.up
+	@make backend.setup
+	@make frontend.setup
 
-DOCKER_COMPOSE ?= docker compose
-DOCKER_USER ?= "$(shell id -u):$(shell id -g)"
-ENV ?= "dev"
+docker.up:
+	@echo "Starting docker..."
+	@docker compose up -d
 
-init:
-	@make -s docker-compose-check
-	@if [ ! -e compose.override.yml ]; then \
-		cp compose.override.dist.yml compose.override.yml; \
-	fi
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) run --rm php composer install --no-interaction --no-scripts
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) run --rm nodejs
-	@make -s install
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) up -d
+docker.stop:
+	@echo "Stopping docker..."
+	@docker compose stop
 
-run:
-	@make -s up
+docker.down:
+	@echo "Stopping and removing docker..."
+	@docker compose down
 
-debug:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.debug.yml up -d
+backend.setup:
+	@echo "Setting up backend..."
+	@docker compose exec php composer install
+	@docker compose exec php php bin/console doctrine:database:create --if-not-exists
+	@docker compose exec php php bin/console doctrine:migrations:migrate -n
+	@docker compose exec php php bin/console sylius:fixtures:load -n
 
-up:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) up -d
+frontend.setup:
+	@echo "Setting up frontend..."
+	@docker compose exec frontend npm install
+	@docker compose exec frontend npm run build
 
-down:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) down
+frontend.build:
+	@echo "Building frontend..."
+	@docker compose exec frontend npm run build
 
-install:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) run --rm php bin/console sylius:install -s default -n
+shell:
+	@echo "Accessing Sylius shell:"
+	docker exec -it sylius-standard-php-1 /bin/sh
 
-clean:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) down -v
-
-php-shell:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) exec php sh
-
-node-shell:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) run --rm -i nodejs sh
-
-node-watch:
-	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) run --rm -i nodejs "npm run watch"
-
-docker-compose-check:
-	@$(DOCKER_COMPOSE) version >/dev/null 2>&1 || (echo "Please install docker compose binary or set DOCKER_COMPOSE=\"docker-compose\" for legacy binary" && exit 1)
-	@echo "You are using \"$(DOCKER_COMPOSE)\" binary"
-	@echo "Current version is \"$$($(DOCKER_COMPOSE) version)\""
+frontend-shell:
+	@echo "Accessing Sylius shell:"
+	docker exec -it sylius-standard-frontend-1 /bin/sh
