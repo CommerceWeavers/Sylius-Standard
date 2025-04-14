@@ -1,3 +1,7 @@
+DOCKER_COMPOSE ?= docker compose
+DOCKER_USER ?= "$(shell id -u):$(shell id -g)"
+ENV ?= "dev"
+
 setup:
 	@echo "Setting up project..."
 	@make docker.up
@@ -32,10 +36,9 @@ frontend.build:
 	@echo "Building frontend..."
 	@docker compose exec frontend npm run build
 
-shell:
-	@echo "Accessing Sylius shell:"
-	docker exec -it sylius-standard-php-1 /bin/sh
+php-shell:
+	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) exec php sh
 
-frontend-shell:
-	@echo "Accessing Sylius shell:"
-	docker exec -it sylius-standard-frontend-1 /bin/sh
+node-shell:
+	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) run --rm -i nodejs sh
+
